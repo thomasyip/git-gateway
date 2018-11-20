@@ -74,6 +74,9 @@ func (gh *GitHubGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx = withProxyTarget(ctx, target)
 	ctx = withAccessToken(ctx, config.GitHub.AccessToken)
+
+	log := getLogEntry(r)
+	log.Infof("proxy.ServeHTTP: %+v\n", r.WithContext(ctx))
 	gh.proxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
@@ -82,8 +85,12 @@ func (gh *GitHubGateway) authenticate(w http.ResponseWriter, r *http.Request) er
 	claims := getClaims(ctx)
 	config := getConfig(ctx)
 
+	log := getLogEntry(r)
+	log.Infof("authenticate context: %v+", ctx)
 	if claims == nil {
-		return errors.New("Access to endpoint not allowed: no claims found in Bearer token")
+		// @TODO? WARNING: the check should be done in auth.go, imo.
+		// Having the jwt in the context (and thus, sent to github.com) is not necessary
+		// return errors.New("Access to endpoint not allowed: no claims found in Bearer token")
 	}
 
 	if !allowedRegexp.MatchString(r.URL.Path) {
