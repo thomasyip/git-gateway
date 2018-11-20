@@ -20,7 +20,7 @@ func (c contextKey) String() string {
 }
 
 const (
-	accessTokenKey = contextKey("access_token")
+	accessTokenKey = contextKey("token")
 	tokenKey       = contextKey("jwt")
 	requestIDKey   = contextKey("request_id")
 	configKey      = contextKey("config")
