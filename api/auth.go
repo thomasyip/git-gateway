@@ -2,14 +2,21 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
+	"github.com/netlify/git-gateway/conf"
 	"github.com/sirupsen/logrus"
 	"github.com/okta/okta-jwt-verifier-golang"
 )
 
-// requireAuthentication checks incoming requests for tokens presented using the Authorization header
-func (a *API) requireAuthentication(w http.ResponseWriter, r *http.Request) (context.Context, error) {
+type Auth struct {
+	config  *conf.GlobalConfiguration
+	version string
+}
+
+// authenicate checks incoming requests for tokens presented using the Authorization header
+func (a *Auth) authenticate(w http.ResponseWriter, r *http.Request) (context.Context, error) {
 	logrus.Info("Getting auth token")
 	token, err := a.extractBearerToken(w, r)
 	if err != nil {
@@ -20,7 +27,48 @@ func (a *API) requireAuthentication(w http.ResponseWriter, r *http.Request) (con
 	return a.parseJWTClaims(token, r)
 }
 
-func (a *API) extractBearerToken(w http.ResponseWriter, r *http.Request) (string, error) {
+// authorize checks incoming requests for roles data in tokens that is parsed and verified by prior authentication step
+func (a *Auth) authorize(w http.ResponseWriter, r *http.Request) (context.Context, error) {
+	ctx := r.Context()
+	claims := getClaims(ctx)
+	config := getConfig(ctx)
+
+	logrus.Infof("authenticate context: %v+", ctx)
+	if claims == nil {
+		return nil, errors.New("Access to endpoint not allowed: no claims found in Bearer token")
+	}
+
+	if !allowedRegexp.MatchString(r.URL.Path) {
+		return nil, errors.New("Access to endpoint not allowed: this part of GitHub's API has been restricted")
+	}
+
+	if len(config.Roles) == 0 {
+		return ctx, nil
+	}
+
+	roles, ok := claims.AppMetaData["roles"]
+	if ok {
+		roleStrings, _ := roles.([]interface{})
+		for _, data := range roleStrings {
+			role, _ := data.(string)
+			for _, adminRole := range config.Roles {
+				if role == adminRole {
+					return ctx, nil
+				}
+			}
+		}
+	}
+
+	return nil, errors.New("Access to endpoint not allowed: your role doesn't allow access")
+}
+
+func NewAuthWithVersion(ctx context.Context, globalConfig *conf.GlobalConfiguration, version string) *Auth {
+    auth := &Auth{config: globalConfig, version: version}
+
+    return auth
+}
+
+func (a *Auth) extractBearerToken(w http.ResponseWriter, r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return "", unauthorizedError("This endpoint requires a Bearer token")
@@ -34,7 +82,7 @@ func (a *API) extractBearerToken(w http.ResponseWriter, r *http.Request) (string
 	return matches[1], nil
 }
 
-func (a *API) parseJWTClaims(bearer string, r *http.Request) (context.Context, error) {
+func (a *Auth) parseJWTClaims(bearer string, r *http.Request) (context.Context, error) {
 	// Reimplemented to use Okta lib
 	// Original validation only work for HS256 algo,
 	// Okta supports RS256 only which requires public key downloading and caching (key rotation)

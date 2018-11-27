@@ -1,7 +1,6 @@
 package api
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -60,11 +59,6 @@ func (gh *GitHubGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := gh.authenticate(w, r); err != nil {
-		handleError(unauthorizedError(err.Error()), w, r)
-		return
-	}
-
 	endpoint := config.GitHub.Endpoint
 	apiURL := singleJoiningSlash(endpoint, "/repos/"+config.GitHub.Repo)
 	target, err := url.Parse(apiURL)
@@ -78,43 +72,6 @@ func (gh *GitHubGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log := getLogEntry(r)
 	log.Infof("proxy.ServeHTTP: %+v\n", r.WithContext(ctx))
 	gh.proxy.ServeHTTP(w, r.WithContext(ctx))
-}
-
-func (gh *GitHubGateway) authenticate(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	claims := getClaims(ctx)
-	config := getConfig(ctx)
-
-	log := getLogEntry(r)
-	log.Infof("authenticate context: %v+", ctx)
-	if claims == nil {
-		// @TODO? WARNING: the check should be done in auth.go, imo.
-		// Having the jwt in the context (and thus, sent to github.com) is not necessary
-		// return errors.New("Access to endpoint not allowed: no claims found in Bearer token")
-	}
-
-	if !allowedRegexp.MatchString(r.URL.Path) {
-		return errors.New("Access to endpoint not allowed: this part of GitHub's API has been restricted")
-	}
-
-	if len(config.Roles) == 0 {
-		return nil
-	}
-
-	roles, ok := claims.AppMetaData["roles"]
-	if ok {
-		roleStrings, _ := roles.([]interface{})
-		for _, data := range roleStrings {
-			role, _ := data.(string)
-			for _, adminRole := range config.Roles {
-				if role == adminRole {
-					return nil
-				}
-			}
-		}
-	}
-
-	return errors.New("Access to endpoint not allowed: your role doesn't allow access")
 }
 
 type GitHubTransport struct{}

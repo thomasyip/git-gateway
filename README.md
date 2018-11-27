@@ -30,7 +30,7 @@ for GitLab:
    /repos/:owner/:name/tree/
 ```
 
-**Running git-gateway to test locally**
+**Running `git-gateway`**
 **(Do not merge this section back to the open source project)**
 **(Do not deploy it to production. It is a Proof of Concept has has not been secured. See @TODO items in code.**
 **(the instruction assume Okta, and github.com)**
@@ -58,3 +58,20 @@ for GitLab:
      change `backend.name` value to `git-gateway`
      change `backend.gateway_url` value to `http://localhost:8087`
 14. run `content-cms` following the README.md
+
+**Develop, Build and Run git-gateway**
+
+1. Follow instructions 1 - 10 in previous "Running `git-gateway`" section
+2. Run these commands once:
+   ```
+   docker build -t netlify/git-gateway:latest .
+   docker run --rm --env-file my.env --net localdev -p 127.0.0.1:8087:8087 --expose 8087 -ti -v $PWD:/go/src/github.com/netlify/git-gateway --entrypoint '/bin/sh' --user root netlify/git-gateway:latest
+   cd /go/src/github.com/netlify/git-gateway
+   make deps
+   ```
+3. Run these commands after edit:
+   ```
+   make build && ./git-gateway
+   ```
+4. `<ctrl> + c` to stop
+
