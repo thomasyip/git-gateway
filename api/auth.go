@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/netlify/git-gateway/conf"
@@ -15,7 +14,17 @@ type Auth struct {
 	version string
 }
 
-// authenicate checks incoming requests for tokens presented using the Authorization header
+// check both authentication and authorization
+func (a *Auth) accessControl(w http.ResponseWriter, r *http.Request) (context.Context, error) {
+	_, err := a.authenticate(w, r)
+	if err != nil {
+		return nil, err
+	}
+
+    return a.authorize(w, r)
+}
+
+// authenticate checks incoming requests for tokens presented using the Authorization header
 func (a *Auth) authenticate(w http.ResponseWriter, r *http.Request) (context.Context, error) {
 	logrus.Info("Getting auth token")
 	token, err := a.extractBearerToken(w, r)
@@ -33,13 +42,9 @@ func (a *Auth) authorize(w http.ResponseWriter, r *http.Request) (context.Contex
 	claims := getClaims(ctx)
 	config := getConfig(ctx)
 
-	logrus.Infof("authenticate context: %v+", ctx)
+	logrus.Infof("authenticate url: %v+", r.URL)
 	if claims == nil {
-		return nil, errors.New("Access to endpoint not allowed: no claims found in Bearer token")
-	}
-
-	if !allowedRegexp.MatchString(r.URL.Path) {
-		return nil, errors.New("Access to endpoint not allowed: this part of GitHub's API has been restricted")
+		return nil, unauthorizedError("Access to endpoint not allowed: no claims found in Bearer token")
 	}
 
 	if len(config.Roles) == 0 {
@@ -59,7 +64,7 @@ func (a *Auth) authorize(w http.ResponseWriter, r *http.Request) (context.Contex
 		}
 	}
 
-	return nil, errors.New("Access to endpoint not allowed: your role doesn't allow access")
+	return nil, unauthorizedError("Access to endpoint not allowed: your role doesn't allow access")
 }
 
 func NewAuthWithVersion(ctx context.Context, globalConfig *conf.GlobalConfiguration, version string) *Auth {

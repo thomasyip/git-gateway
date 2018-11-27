@@ -78,6 +78,11 @@ func (gl *GitLabGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !gitlabAllowedRegexp.MatchString(r.URL.Path) {
+		handleError(unauthorizedError("Access to endpoint not allowed: this part of GitLab's API has been restricted"), w, r)
+		return
+	}
+
 	endpoint := config.GitLab.Endpoint
 	// repos in the form of userName/repoName must be encoded as
 	// userName%2FrepoName

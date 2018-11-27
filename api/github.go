@@ -59,6 +59,11 @@ func (gh *GitHubGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !allowedRegexp.MatchString(r.URL.Path) {
+		handleError(unauthorizedError("Access to endpoint not allowed: this part of GitHub's API has been restricted"), w, r)
+		return
+	}
+
 	endpoint := config.GitHub.Endpoint
 	apiURL := singleJoiningSlash(endpoint, "/repos/"+config.GitHub.Repo)
 	target, err := url.Parse(apiURL)

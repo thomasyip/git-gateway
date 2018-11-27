@@ -117,6 +117,11 @@ func (bb *BitBucketGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !bitbucketAllowedRegexp.MatchString(r.URL.Path) {
+		handleError(unauthorizedError("Access to endpoint not allowed: this part of BitBucket's API has been restricted"), w, r)
+		return
+	}
+
 	endpoint := config.BitBucket.Endpoint
 	apiURL := singleJoiningSlash(endpoint, "/repositories/"+config.BitBucket.Repo)
 	target, err := url.Parse(apiURL)

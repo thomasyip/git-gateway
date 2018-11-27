@@ -77,10 +77,10 @@ func NewAPIWithVersion(ctx context.Context, globalConfig *conf.GlobalConfigurati
 			r.Use(api.loadJWSSignatureHeader)
 			r.Use(api.loadInstanceConfig)
 		}
-		r.With(api.auth.authenticate).Mount("/github", NewGitHubGateway())
-		r.With(api.auth.authenticate).Mount("/gitlab", NewGitLabGateway())
-		r.With(api.auth.authenticate).Mount("/bitbucket", NewBitBucketGateway())
-		r.With(api.auth.authenticate).Get("/settings", api.Settings)
+		r.With(api.auth.accessControl).Mount("/github", NewGitHubGateway())
+		r.With(api.auth.accessControl).Mount("/gitlab", NewGitLabGateway())
+		r.With(api.auth.accessControl).Mount("/bitbucket", NewBitBucketGateway())
+		r.With(api.auth.accessControl).Get("/settings", api.Settings)
 	})
 
 	if globalConfig.MultiInstanceMode {
