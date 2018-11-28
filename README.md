@@ -30,48 +30,38 @@ for GitLab:
    /repos/:owner/:name/tree/
 ```
 
-**Running `git-gateway`**
-**(Do not merge this section back to the open source project)**
-**(Do not deploy it to production. It is a Proof of Concept has has not been secured. See @TODO items in code.**
-**(the instruction assume Okta, and github.com)**
+### Trying out `git-gateway`
+
+The instructions below is a way of testing out `git-gateway`. It assumes you have Docker installed and are familiar with Okta (an IDaaS). If you are using a different stack, please adjust the steps accordingly.
 
 1. pull down this project
 2. generate a `personal access token` on github. (recommended: using a test account and w/ `repo:status` and `public_repo` permission only)
     https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
 3. `cp example.env my.env`
 4. update `GITGATEWAY_GITHUB_ACCESS_TOKEN` value in `my.env` accordingly
-5. update `GITGATEWAY_GITHUB_REPO` value in `my.env` (it will be where the content being stored, eg, `owner/netlify-test`.)
+5. update `GITGATEWAY_GITHUB_REPO` value in `my.env` (it will be where the content being stored, eg, `owner/netlify-cms-storage`.)
 6. sign up for a Dev account on Okta: https://developer.okta.com/signup/
 7. create a SPA Application onto the Dev account:
     a. fill out the details
-    b. Pick "Send ID Token directly to app (Okta Simplified)"
-    c. have redirect uri points to the url of your content-cms ip:port
-      (eg, `http://localhost:8080/admin` etc, see, https://github.com/<< your org >>/content-cms)
+    b. pick `Either Okta or App`
+    c. pick `Send ID Token directly to app (Okta Simplified)``
+    d. have redirect uri points to the url of your `my-netlify-cms` ip:port
+      (eg, `http://localhost:8080/admin` etc, see, https://github.com/<< your org >>/my-netlify-cms)
+    e. make sure `Authorization Servers` is activated
+    f. go to `Trusted Origins` tab and add the url for your `my-netlify-cms` instance
+    g. add yourself or a test user
 8. update `ISSUER` value in `my.env` accordingly (eg, `https://dev-1234.oktapreview.com/oauth2/default`)
 9. update `CLIENT_ID` value in `my.env` accordingly (eg, `32q897q234q324rq42322q`)
-10. install Docker and add the `localdev` network
-11. inspect Dockfile and then build the docker with this command:
+10. comment out `GITGATEWAY_ROLES` to disable role checking (authorization is controlled by `Assignments` on Okta)
+11. update `GITGATEWAY_API_HOST` to `0.0.0.0`
+12. inspect Dockerfile and then build the docker with this command:
     `docker build -t netlify/git-gateway:latest .`
-12. run `git-gateway` with this command:
-    `docker run --rm --env-file my.env --net localdev -p 127.0.0.1:8087:8087 --expose 8087 -ti --name netlify-git-gateway "netlify/git-gateway:latest"`
-13. update `config.yml` in your content-cms repo (ie, https://github.com/<< your org >>/content-cms).
+13. run `git-gateway` with this command:
+    `docker run --rm --env-file my.env -p 127.0.0.1:9999:9999 --expose 9999 -ti --name netlify-git-gateway "netlify/git-gateway:latest"`
+14. update `config.yml` in your my-netlify-cms repo.
      change `backend.name` value to `git-gateway`
-     change `backend.gateway_url` value to `http://localhost:8087`
-14. run `content-cms` following the README.md
+     change `backend.gateway_url` value to `http://localhost:9999`
+15. integrate okta sign-in to your `my-netlify-cms` (eg, https://developer.okta.com/quickstart/#/widget/nodejs/express)
+16. start your `my-netlify-cms` instance
 
-**Develop, Build and Run git-gateway**
-
-1. Follow instructions 1 - 10 in previous "Running `git-gateway`" section
-2. Run these commands once:
-   ```
-   docker build -t netlify/git-gateway:latest .
-   docker run --rm --env-file my.env --net localdev -p 127.0.0.1:8087:8087 --expose 8087 -ti -v $PWD:/go/src/github.com/netlify/git-gateway --entrypoint '/bin/sh' --user root netlify/git-gateway:latest
-   cd /go/src/github.com/netlify/git-gateway
-   make deps
-   ```
-3. Run these commands after edit:
-   ```
-   make build && ./git-gateway
-   ```
-4. `<ctrl> + c` to stop
-
+See, Wiki page for additional information.
