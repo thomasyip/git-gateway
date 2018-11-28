@@ -5,25 +5,23 @@ import (
 	"net/http"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/netlify/git-gateway/conf"
 	"github.com/sirupsen/logrus"
 	"github.com/okta/okta-jwt-verifier-golang"
 )
 
 type Authenticator interface {
-	// authenticate checks incoming requests for tokens presented using the Authorization header
+	// `authenticate` checks incoming requests for tokens presented using the Authorization header
 	authenticate(w http.ResponseWriter, r *http.Request) (context.Context, error)
 	getName() string
 }
 
 type Authorizer interface {
-	// authorize checks incoming requests for roles data in tokens that is parsed and verified by prior authentication step
+	// `authorize` checks incoming requests for roles data in tokens that is parsed and verified by a prior `authenticate` step
 	authorize(w http.ResponseWriter, r *http.Request) (context.Context, error)
 	getName() string
 }
 
 type Auth struct {
-	config  *conf.GlobalConfiguration
 	authenticator Authenticator
 	authorizer Authorizer
 	version string
@@ -44,10 +42,23 @@ type RolesAuthorizer struct {
 	auth Auth
 }
 
-func NewAuthWithVersion(ctx context.Context, globalConfig *conf.GlobalConfiguration, version string) *Auth {
-	auth := &Auth{config: globalConfig, version: version}
+func NewAuthWithVersion(ctx context.Context, version string) *Auth {
+	config := getConfig(ctx)
+	auth := &Auth{version: version}
+	authenticatorName := config.JWT.Authenticator
 
-	auth.authenticator = &OktaJWTAuthenticator{name: "bearer-jwt-token", auth: *auth}
+	if (authenticatorName == "bearer-jwt-token") {
+		auth.authenticator = &JWTAuthenticator{name: "bearer-jwt-token", auth: *auth}
+	} else if (authenticatorName == "bearer-okta-jwt-token") {
+		auth.authenticator = &OktaJWTAuthenticator{name: "bearer-okta-jwt-token", auth: *auth}
+	} else {
+		if (authenticatorName != "") {
+			logrus.Fatal("Authenticator `%v` is not recognized", authenticatorName)
+		} else {
+			logrus.Fatal("Authenticator is not defined")
+		}
+	}
+
 	auth.authorizer = &RolesAuthorizer{name: "bearer-jwt-token-roles", auth: *auth}
 
 	return auth

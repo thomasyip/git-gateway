@@ -59,7 +59,7 @@ func NewAPI(globalConfig *conf.GlobalConfiguration, db storage.Connection) *API 
 
 // NewAPIWithVersion creates a new REST API using the specified version
 func NewAPIWithVersion(ctx context.Context, globalConfig *conf.GlobalConfiguration, db storage.Connection, version string) *API {
-	auth := NewAuthWithVersion(ctx, globalConfig, version)
+	auth := NewAuthWithVersion(ctx, version)
 	api := &API{config: globalConfig, db: db, auth: *auth, version: version}
 
 	xffmw, _ := xff.Default()
