@@ -148,15 +148,28 @@ func (a *OktaJWTAuthenticator) parseOktaJWTClaims(bearer string, r *http.Request
 
 	verifier := jwtVerifierSetup.New()
 
-	_, err := verifier.VerifyAccessToken(bearer)
+	token, err := verifier.VerifyAccessToken(bearer)
 
 	if err != nil {
 		return nil, unauthorizedError("Invalid token: %v", err)
 	}
-
-	claims := GatewayClaims{Email: "e", StandardClaims: jwt.StandardClaims{Audience: "a"}}
-
 	logrus.Infof("parseJWTClaims passed")
+
+	claims := GatewayClaims{
+		Email: token.Claims["sub"].(string),
+		AppMetaData: nil,
+		UserMetaData: nil,
+		StandardClaims: jwt.StandardClaims{
+			Audience: 	token.Claims["aud"].(string),
+			ExpiresAt:  int64(token.Claims["exp"].(float64)),
+			Id:			token.Claims["jti"].(string),
+			IssuedAt:	int64(token.Claims["iat"].(float64)),
+			Issuer:		token.Claims["iss"].(string),
+			NotBefore:	0,
+			Subject:	token.Claims["sub"].(string),
+		},
+	}
+
 	return withClaims(r.Context(), &claims), nil
 }
 
