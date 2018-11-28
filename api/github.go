@@ -74,8 +74,6 @@ func (gh *GitHubGateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx = withProxyTarget(ctx, target)
 	ctx = withAccessToken(ctx, config.GitHub.AccessToken)
 
-	log := getLogEntry(r)
-	log.Infof("proxy.ServeHTTP: %+v\n", r.WithContext(ctx))
 	gh.proxy.ServeHTTP(w, r.WithContext(ctx))
 }
 
