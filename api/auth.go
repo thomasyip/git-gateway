@@ -47,16 +47,12 @@ func NewAuthWithVersion(ctx context.Context, version string) *Auth {
 	auth := &Auth{version: version}
 	authenticatorName := config.JWT.Authenticator
 
-	if (authenticatorName == "bearer-jwt-token") {
+	if (authenticatorName == "bearer-jwt-token" || authenticatorName == "") {
 		auth.authenticator = &JWTAuthenticator{name: "bearer-jwt-token", auth: *auth}
 	} else if (authenticatorName == "bearer-okta-jwt-token") {
 		auth.authenticator = &OktaJWTAuthenticator{name: "bearer-okta-jwt-token", auth: *auth}
 	} else {
-		if (authenticatorName != "") {
-			logrus.Fatal("Authenticator `" + authenticatorName + "` is not recognized")
-		} else {
-			logrus.Fatal("Authenticator is not defined")
-		}
+		logrus.Fatal("Authenticator `" + authenticatorName + "` is not recognized")
 	}
 
 	auth.authorizer = &RolesAuthorizer{name: "bearer-jwt-token-roles", auth: *auth}
